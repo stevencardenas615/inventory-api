@@ -1,0 +1,20 @@
+[project]
+name = "inventory-api"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Steven Cardenas", email = "283815984+stevencardenas615@users.noreply.github.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi[standard]>=0.141.1",
+    "psycopg[binary]>=3.3.6",
+    "python-dotenv>=1.2.3",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+]
