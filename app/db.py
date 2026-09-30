@@ -8,5 +8,5 @@ load_dotenv()
 DATABASE_URL = os.environ["DATABASE_URL"]
 
 def get_db():
-    with psycopg.connect(DATABASE_URL, row_factory=dict_row) as conn:
+    with psycopg.connect(DATABASE_URL, row_factory=dict_row, connect_timeout=5) as conn:
         yield conn
