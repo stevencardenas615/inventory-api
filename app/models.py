@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 from pydantic import BaseModel
 from decimal import Decimal
@@ -34,7 +34,7 @@ class ProductUpdate(BaseModel):
     status: EditableStatus | None = None
 
 class ManifestCreate(BaseModel):
-    purchase_date: datetime
+    purchase_date: date
     cost: Decimal
 
 class Manifest(ManifestCreate):
@@ -42,7 +42,7 @@ class Manifest(ManifestCreate):
     entered_by: int
 
 class ManifestUpdate(BaseModel):
-    purchase_date: datetime | None = None
+    purchase_date: date | None = None
     cost: Decimal | None = None
 
 class UserBase(BaseModel):
