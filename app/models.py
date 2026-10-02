@@ -64,3 +64,6 @@ class UserUpdate(BaseModel):
     username: str | None = None
     first_name: str | None = None
     last_name: str | None = None    
+
+class ProductSell(BaseModel):
+    sold_price: Decimal

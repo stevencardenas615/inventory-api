@@ -1,7 +1,7 @@
 import psycopg
 from fastapi import FastAPI, Depends, HTTPException
 from app.db import get_db
-from app.models import ManifestCreate, Manifest, ProductCreate, Product, ProductUpdate
+from app.models import ManifestCreate, Manifest, ProductCreate, Product, ProductUpdate, ProductSell
 from psycopg import sql
 
 app = FastAPI()
@@ -77,4 +77,20 @@ def update_product(product_id: int, product: ProductUpdate, conn: psycopg.Connec
 
     if row is None:
         raise HTTPException(status_code=404, detail="Product not found")
+    return row
+
+@app.post("/products/{product_id}/sell", response_model=Product)
+def sell_product(product_id: int, sale: ProductSell, conn: psycopg.Connection[dict] = Depends(get_db)):
+    row = conn.execute("UPDATE products SET status ='sold', sold_price = %s, sold_at = now()"
+                       " WHERE product_id = %s AND status = 'available' RETURNING *",
+                       (sale.sold_price, product_id,)).fetchone()
+
+    if row is None:
+        existing = conn.execute("SELECT status FROM products WHERE product_id = %s", (product_id,)).fetchone()
+
+        if existing is None:
+            raise HTTPException(status_code=404, detail="Product not found")
+
+        raise HTTPException(status_code=409, detail=f"Product is {existing['status']}, only available products can be sold",)
+
     return row
