@@ -1,7 +1,8 @@
 import psycopg
 from fastapi import FastAPI, Depends, HTTPException
 from app.db import get_db
-from app.models import ManifestCreate, Manifest, ProductCreate, Product
+from app.models import ManifestCreate, Manifest, ProductCreate, Product, ProductUpdate
+from psycopg import sql
 
 app = FastAPI()
 
@@ -61,3 +62,19 @@ def get_product(product_id: int, conn: psycopg.Connection = Depends(get_db)):
 def list_products(conn: psycopg.Connection = Depends(get_db)):
     results = conn.execute("SELECT * FROM products ORDER BY product_id DESC").fetchall()
     return results
+
+@app.patch("/products/{product_id}", response_model=Product)
+def update_product(product_id: int, product: ProductUpdate, conn: psycopg.Connection = Depends(get_db)):
+    updates = product.model_dump(exclude_unset=True)
+
+    if not updates:       
+        raise HTTPException(status_code=400, detail="No fields to update")
+    
+    set_clause = sql.SQL(", ").join(sql.SQL("{} = %s").format(sql.Identifier(col)) for col in updates)
+    query = sql.SQL("UPDATE products SET {} WHERE product_id = %s RETURNING *").format(set_clause)
+
+    row = conn.execute(query, (*updates.values(), product_id)).fetchone()
+
+    if row is None:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return row
