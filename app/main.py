@@ -1,8 +1,9 @@
 import psycopg
 from fastapi import FastAPI, Depends, HTTPException
-from app.db import get_db
-from app.models import ManifestCreate, Manifest, ProductCreate, Product, ProductUpdate, ProductSell, Status
 from psycopg import sql
+from app.security import hash_password
+from app.db import get_db
+from app.models import ManifestCreate, Manifest, ProductCreate, Product, ProductUpdate, ProductSell, Status, User, UserCreate
 
 app = FastAPI()
 
@@ -124,3 +125,16 @@ def list_manifest_products(manifest_id: int, conn: psycopg.Connection[dict] = De
             raise HTTPException(status_code=404, detail="Manifest not found")
 
     return results
+
+@app.post("/auth/register", response_model=User)
+def register(user: UserCreate, conn: psycopg.Connection = Depends(get_db)):
+    try:
+        row = conn.execute(
+            "INSERT INTO users (username, password_hash, first_name, last_name) "
+            "VALUES (%s, %s, %s, %s) "
+            "RETURNING user_id, username, first_name, last_name, created_at",
+            (user.username, hash_password(user.password), user.first_name, user.last_name),
+        ).fetchone()
+    except psycopg.errors.UniqueViolation:
+        raise HTTPException(status_code=409, detail="Username already taken")
+    return row
