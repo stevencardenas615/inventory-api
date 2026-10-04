@@ -1,9 +1,10 @@
 import psycopg
 from fastapi import FastAPI, Depends, HTTPException
 from psycopg import sql
-from app.security import hash_password
+from app.security import hash_password, verify_password, create_access_token
 from app.db import get_db
 from app.models import ManifestCreate, Manifest, ProductCreate, Product, ProductUpdate, ProductSell, Status, User, UserCreate
+from fastapi.security import OAuth2PasswordRequestForm
 
 app = FastAPI()
 
@@ -138,3 +139,10 @@ def register(user: UserCreate, conn: psycopg.Connection = Depends(get_db)):
     except psycopg.errors.UniqueViolation:
         raise HTTPException(status_code=409, detail="Username already taken")
     return row
+
+@app.post("/auth/token")
+def login(form: OAuth2PasswordRequestForm = Depends(), conn: psycopg.Connection[dict] = Depends(get_db)):
+    row = conn.execute("SELECT user_id, password_hash FROM users WHERE username = %s", (form.username,)).fetchone()
+    if row is None or not verify_password(form.password, row["password_hash"]):
+        raise HTTPException(status_code=401, detail="Incorrect username or password", headers={"WWW-Authenticate": "Bearer"})
+    return {"access_token": create_access_token(row["user_id"]), "token_type": "bearer"}
