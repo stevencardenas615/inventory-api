@@ -1,7 +1,7 @@
 import psycopg
 from fastapi import FastAPI, Depends, HTTPException
 from app.db import get_db
-from app.models import ManifestCreate, Manifest, ProductCreate, Product, ProductUpdate, ProductSell
+from app.models import ManifestCreate, Manifest, ProductCreate, Product, ProductUpdate, ProductSell, Status
 from psycopg import sql
 
 app = FastAPI()
@@ -59,8 +59,11 @@ def get_product(product_id: int, conn: psycopg.Connection = Depends(get_db)):
     return row
 
 @app.get("/products", response_model=list[Product])
-def list_products(conn: psycopg.Connection = Depends(get_db)):
-    results = conn.execute("SELECT * FROM products ORDER BY product_id DESC").fetchall()
+def list_products(status: Status | None = None, conn: psycopg.Connection[dict] = Depends(get_db)):
+    if status is None:
+        results = conn.execute("SELECT * FROM products WHERE status <> 'deleted' ORDER BY product_id DESC").fetchall()
+    else:
+        results = conn.execute("SELECT * FROM products WHERE status = %s ORDER BY product_id DESC", (status.value,)).fetchall()
     return results
 
 @app.patch("/products/{product_id}", response_model=Product)
