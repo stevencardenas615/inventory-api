@@ -94,3 +94,19 @@ def sell_product(product_id: int, sale: ProductSell, conn: psycopg.Connection[di
         raise HTTPException(status_code=409, detail=f"Product is {existing['status']}, only available products can be sold",)
 
     return row
+
+@app.delete("/products/{product_id}", response_model=Product)
+def delete_product(product_id: int, conn: psycopg.Connection[dict] = Depends(get_db)):
+    row = conn.execute("UPDATE products SET status ='deleted' "
+                       " WHERE product_id = %s AND status <> 'sold' RETURNING *",
+                       (product_id,)).fetchone()
+
+    if row is None:
+        existing = conn.execute("SELECT status FROM products WHERE product_id = %s", (product_id,)).fetchone()
+
+        if existing is None:
+            raise HTTPException(status_code=404, detail="Product not found")
+
+        raise HTTPException(status_code=409, detail="Sold products cannot be deleted",)
+
+    return row
