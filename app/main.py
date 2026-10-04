@@ -113,3 +113,14 @@ def delete_product(product_id: int, conn: psycopg.Connection[dict] = Depends(get
         raise HTTPException(status_code=409, detail="Sold products cannot be deleted",)
 
     return row
+@app.get("/manifests/{manifest_id}/products", response_model=list[Product])
+def list_manifest_products(manifest_id: int, conn: psycopg.Connection[dict] = Depends(get_db)):
+    results = conn.execute("SELECT * FROM products WHERE manifest_id = %s AND status <> 'deleted' ORDER BY product_id DESC ", (manifest_id, )).fetchall()
+
+    if not results:
+        manifest = conn.execute("SELECT manifest_id FROM manifests WHERE manifest_id = %s", (manifest_id,)).fetchone()
+
+        if manifest is None:
+            raise HTTPException(status_code=404, detail="Manifest not found")
+
+    return results
