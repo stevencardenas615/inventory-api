@@ -1,12 +1,27 @@
 import psycopg
+import jwt
 from fastapi import FastAPI, Depends, HTTPException
 from psycopg import sql
-from app.security import hash_password, verify_password, create_access_token
+from app.security import hash_password, verify_password, create_access_token, decode_access_token
 from app.db import get_db
 from app.models import ManifestCreate, Manifest, ProductCreate, Product, ProductUpdate, ProductSell, Status, User, UserCreate
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 
 app = FastAPI()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
+
+def get_current_user(token: str = Depends(oauth2_scheme), conn: psycopg.Connection[dict] = Depends(get_db),):
+    credentials_error = HTTPException(status_code=401, detail="Could not validate credentials", headers={"WWW-Authenticate": "Bearer"})
+    try:
+        user_id = decode_access_token(token)
+    except (jwt.InvalidTokenError, KeyError, ValueError):
+        raise credentials_error
+
+    row = conn.execute("SELECT user_id, username, first_name, last_name, created_at FROM users WHERE user_id = %s", (user_id,)).fetchone()
+    if row is None:
+        raise credentials_error
+    return row
+
 
 @app.get("/health")
 def health(conn: psycopg.Connection = Depends(get_db)):
@@ -146,3 +161,7 @@ def login(form: OAuth2PasswordRequestForm = Depends(), conn: psycopg.Connection[
     if row is None or not verify_password(form.password, row["password_hash"]):
         raise HTTPException(status_code=401, detail="Incorrect username or password", headers={"WWW-Authenticate": "Bearer"})
     return {"access_token": create_access_token(row["user_id"]), "token_type": "bearer"}
+
+@app.get("/auth/me", response_model=User)
+def read_me(current_user = Depends(get_current_user)):
+    return current_user
