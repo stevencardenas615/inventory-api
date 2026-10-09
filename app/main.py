@@ -29,20 +29,19 @@ def health(conn: psycopg.Connection = Depends(get_db)):
     return {"status": "ok"}
 
 @app.post("/manifests", response_model=Manifest)
-def create_manifest(manifest: ManifestCreate, conn: psycopg.Connection = Depends(get_db)):
+def create_manifest(manifest: ManifestCreate, current_user: dict = Depends(get_current_user), conn: psycopg.Connection = Depends(get_db)):
     row = conn.execute(
         "INSERT INTO manifests (purchase_date, cost, entered_by) "
         "VALUES (%s, %s, %s) RETURNING *",
-        (manifest.purchase_date, manifest.cost, 1),  # TODO: entered_by from JWT user
-    ).fetchone()
+        (manifest.purchase_date, manifest.cost, current_user["user_id"])).fetchone()
     return row
 
-@app.get("/manifests", response_model=list[Manifest])
+@app.get("/manifests", response_model=list[Manifest],  dependencies=[Depends(get_current_user)])
 def list_manifests(conn: psycopg.Connection = Depends(get_db)):
     results = conn.execute("SELECT * FROM manifests ORDER BY purchase_date DESC").fetchall()
     return results
 
-@app.get("/manifests/{manifest_id}", response_model=Manifest)
+@app.get("/manifests/{manifest_id}", response_model=Manifest,  dependencies=[Depends(get_current_user)])
 def get_manifest(manifest_id: int, conn: psycopg.Connection = Depends(get_db)):
     row = conn.execute(
         "SELECT * FROM manifests WHERE manifest_id = %s", (manifest_id,)
@@ -52,7 +51,7 @@ def get_manifest(manifest_id: int, conn: psycopg.Connection = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Manifest not found")
     return row
 
-@app.post("/products", response_model=Product)
+@app.post("/products", response_model=Product,  dependencies=[Depends(get_current_user)])
 def create_product(product: ProductCreate, conn: psycopg.Connection = Depends(get_db)):
     try:
         row = conn.execute(
@@ -65,7 +64,7 @@ def create_product(product: ProductCreate, conn: psycopg.Connection = Depends(ge
         raise HTTPException(status_code=400, detail="Manifest not found")
     return row
 
-@app.get("/products/{product_id}", response_model=Product)
+@app.get("/products/{product_id}", response_model=Product, dependencies=[Depends(get_current_user)])
 def get_product(product_id: int, conn: psycopg.Connection = Depends(get_db)):
     row = conn.execute(
         "SELECT * FROM products WHERE product_id = %s", (product_id,)
@@ -75,7 +74,7 @@ def get_product(product_id: int, conn: psycopg.Connection = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Product not found")
     return row
 
-@app.get("/products", response_model=list[Product])
+@app.get("/products", response_model=list[Product], dependencies=[Depends(get_current_user)])
 def list_products(status: Status | None = None, conn: psycopg.Connection[dict] = Depends(get_db)):
     if status is None:
         results = conn.execute("SELECT * FROM products WHERE status <> 'deleted' ORDER BY product_id DESC").fetchall()
@@ -83,7 +82,7 @@ def list_products(status: Status | None = None, conn: psycopg.Connection[dict] =
         results = conn.execute("SELECT * FROM products WHERE status = %s ORDER BY product_id DESC", (status.value,)).fetchall()
     return results
 
-@app.patch("/products/{product_id}", response_model=Product)
+@app.patch("/products/{product_id}", response_model=Product, dependencies=[Depends(get_current_user)])
 def update_product(product_id: int, product: ProductUpdate, conn: psycopg.Connection = Depends(get_db)):
     updates = product.model_dump(exclude_unset=True)
 
@@ -99,7 +98,7 @@ def update_product(product_id: int, product: ProductUpdate, conn: psycopg.Connec
         raise HTTPException(status_code=404, detail="Product not found")
     return row
 
-@app.post("/products/{product_id}/sell", response_model=Product)
+@app.post("/products/{product_id}/sell", response_model=Product, dependencies=[Depends(get_current_user)])
 def sell_product(product_id: int, sale: ProductSell, conn: psycopg.Connection[dict] = Depends(get_db)):
     row = conn.execute("UPDATE products SET status ='sold', sold_price = %s, sold_at = now()"
                        " WHERE product_id = %s AND status = 'available' RETURNING *",
@@ -115,7 +114,7 @@ def sell_product(product_id: int, sale: ProductSell, conn: psycopg.Connection[di
 
     return row
 
-@app.delete("/products/{product_id}", response_model=Product)
+@app.delete("/products/{product_id}", response_model=Product, dependencies=[Depends(get_current_user)])
 def delete_product(product_id: int, conn: psycopg.Connection[dict] = Depends(get_db)):
     row = conn.execute("UPDATE products SET status ='deleted' "
                        " WHERE product_id = %s AND status <> 'sold' RETURNING *",
@@ -130,7 +129,7 @@ def delete_product(product_id: int, conn: psycopg.Connection[dict] = Depends(get
         raise HTTPException(status_code=409, detail="Sold products cannot be deleted",)
 
     return row
-@app.get("/manifests/{manifest_id}/products", response_model=list[Product])
+@app.get("/manifests/{manifest_id}/products", response_model=list[Product], dependencies=[Depends(get_current_user)])
 def list_manifest_products(manifest_id: int, conn: psycopg.Connection[dict] = Depends(get_db)):
     results = conn.execute("SELECT * FROM products WHERE manifest_id = %s AND status <> 'deleted' ORDER BY product_id DESC ", (manifest_id, )).fetchall()
 
