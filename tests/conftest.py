@@ -16,7 +16,7 @@ TEST_DATABASE_URL = os.environ["TEST_DATABASE_URL"]
 @pytest.fixture
 def client():
     def override_get_db():
-        with psycopg.connect(TEST_DATABASE_URL, row_factory=dict_row, connect_timeout=5) as conn:
+        with psycopg.connect(TEST_DATABASE_URL, row_factory=dict_row, connect_timeout=5) as conn: # type: ignore
             yield conn
 
     app.dependency_overrides[get_db] = override_get_db
