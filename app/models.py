@@ -14,16 +14,19 @@ class EditableStatus(str, Enum):
     NOT_AVAILABLE = "not_available"
     DELETED = "deleted"
 
-class ProductCreate(BaseModel):
+class ProductBase(BaseModel):
     manifest_id: int
     barcode: str
     product_name: str
     retail_price: Decimal
     list_price: Decimal
-    status: Status = Status.NOT_AVAILABLE
 
-class Product(ProductCreate):
+class ProductCreate(ProductBase):
+    status: EditableStatus = EditableStatus.NOT_AVAILABLE
+
+class Product(ProductBase):
     product_id: int
+    status: Status
     sold_price: Decimal | None = None
     sold_at: datetime | None = None
 
