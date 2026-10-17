@@ -5,5 +5,5 @@ venv/
 .env
 .pytest_cache/
 *.db
-.DS_Store.coverage
+.DS_Store
 .coverage

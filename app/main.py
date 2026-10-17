@@ -90,12 +90,15 @@ def update_product(product_id: int, product: ProductUpdate, conn: psycopg.Connec
         raise HTTPException(status_code=400, detail="No fields to update")
     
     set_clause = sql.SQL(", ").join(sql.SQL("{} = %s").format(sql.Identifier(col)) for col in updates)
-    query = sql.SQL("UPDATE products SET {} WHERE product_id = %s RETURNING *").format(set_clause)
+    query = sql.SQL("UPDATE products SET {} WHERE product_id = %s AND status <> 'sold' RETURNING *").format(set_clause)
 
     row = conn.execute(query, (*updates.values(), product_id)).fetchone()
 
     if row is None:
-        raise HTTPException(status_code=404, detail="Product not found")
+        existing = conn.execute("SELECT status FROM products WHERE product_id = %s", (product_id,)).fetchone()
+        if existing is None:
+            raise HTTPException(status_code=404, detail="Product not found")
+        raise HTTPException(status_code=409, detail="Sold products cannot be edited")
     return row
 
 @app.post("/products/{product_id}/sell", response_model=Product, dependencies=[Depends(get_current_user)])

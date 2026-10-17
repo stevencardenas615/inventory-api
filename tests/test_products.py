@@ -88,3 +88,10 @@ def test_deleted_product_hidden_from_list(client, auth_headers):
     client.delete(f"/products/{product_id}", headers=auth_headers)
     r = client.get("/products", headers=auth_headers)
     assert r.json() == []
+
+def test_patch_sold_product_is_409(client, auth_headers):
+    manifest_id = make_manifest(client, auth_headers)
+    product_id = make_product(client, auth_headers, manifest_id, status="available").json()["product_id"]
+    client.post(f"/products/{product_id}/sell", json={"sold_price": "35.00"}, headers=auth_headers)
+    r = client.patch(f"/products/{product_id}", json={"list_price": "1.00"}, headers=auth_headers)
+    assert r.status_code == 409
