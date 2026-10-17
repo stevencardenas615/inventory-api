@@ -2,40 +2,18 @@ import psycopg
 from fastapi import FastAPI, Depends, HTTPException
 from psycopg import sql
 from app.db import get_db
-from app.models import ManifestCreate, Manifest, ProductCreate, Product, ProductUpdate, ProductSell, Status
+from app.models import ProductCreate, Product, ProductUpdate, ProductSell, Status
 from app.deps import get_current_user
-from app.routers import auth
+from app.routers import auth, manifests
 
 app = FastAPI()
 app.include_router(auth.router)
+app.include_router(manifests.router)
 
 @app.get("/health")
 def health(conn: psycopg.Connection = Depends(get_db)):
     conn.execute("SELECT 1")
     return {"status": "ok"}
-
-@app.post("/manifests", response_model=Manifest)
-def create_manifest(manifest: ManifestCreate, current_user: dict = Depends(get_current_user), conn: psycopg.Connection = Depends(get_db)):
-    row = conn.execute(
-        "INSERT INTO manifests (purchase_date, cost, entered_by) "
-        "VALUES (%s, %s, %s) RETURNING *",
-        (manifest.purchase_date, manifest.cost, current_user["user_id"])).fetchone()
-    return row
-
-@app.get("/manifests", response_model=list[Manifest],  dependencies=[Depends(get_current_user)])
-def list_manifests(conn: psycopg.Connection = Depends(get_db)):
-    results = conn.execute("SELECT * FROM manifests ORDER BY purchase_date DESC").fetchall()
-    return results
-
-@app.get("/manifests/{manifest_id}", response_model=Manifest,  dependencies=[Depends(get_current_user)])
-def get_manifest(manifest_id: int, conn: psycopg.Connection = Depends(get_db)):
-    row = conn.execute(
-        "SELECT * FROM manifests WHERE manifest_id = %s", (manifest_id,)
-    ).fetchone()
-
-    if row is None:
-        raise HTTPException(status_code=404, detail="Manifest not found")
-    return row
 
 @app.post("/products", response_model=Product,  dependencies=[Depends(get_current_user)])
 def create_product(product: ProductCreate, conn: psycopg.Connection = Depends(get_db)):
@@ -104,6 +82,7 @@ def sell_product(product_id: int, sale: ProductSell, conn: psycopg.Connection[di
     return row
 
 @app.delete("/products/{product_id}", response_model=Product, dependencies=[Depends(get_current_user)])
+
 def delete_product(product_id: int, conn: psycopg.Connection[dict] = Depends(get_db)):
     row = conn.execute("UPDATE products SET status ='deleted' "
                        " WHERE product_id = %s AND status <> 'sold' RETURNING *",
@@ -118,14 +97,3 @@ def delete_product(product_id: int, conn: psycopg.Connection[dict] = Depends(get
         raise HTTPException(status_code=409, detail="Sold products cannot be deleted",)
 
     return row
-@app.get("/manifests/{manifest_id}/products", response_model=list[Product], dependencies=[Depends(get_current_user)])
-def list_manifest_products(manifest_id: int, conn: psycopg.Connection[dict] = Depends(get_db)):
-    results = conn.execute("SELECT * FROM products WHERE manifest_id = %s AND status <> 'deleted' ORDER BY product_id DESC ", (manifest_id, )).fetchall()
-
-    if not results:
-        manifest = conn.execute("SELECT manifest_id FROM manifests WHERE manifest_id = %s", (manifest_id,)).fetchone()
-
-        if manifest is None:
-            raise HTTPException(status_code=404, detail="Manifest not found")
-
-    return results
