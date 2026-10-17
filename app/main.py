@@ -1,27 +1,13 @@
 import psycopg
-import jwt
 from fastapi import FastAPI, Depends, HTTPException
 from psycopg import sql
-from app.security import hash_password, verify_password, create_access_token, decode_access_token
+from app.security import hash_password, verify_password, create_access_token
 from app.db import get_db
 from app.models import ManifestCreate, Manifest, ProductCreate, Product, ProductUpdate, ProductSell, Status, User, UserCreate
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordRequestForm
+from app.deps import get_current_user
 
 app = FastAPI()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
-
-def get_current_user(token: str = Depends(oauth2_scheme), conn: psycopg.Connection[dict] = Depends(get_db),):
-    credentials_error = HTTPException(status_code=401, detail="Could not validate credentials", headers={"WWW-Authenticate": "Bearer"})
-    try:
-        user_id = decode_access_token(token)
-    except (jwt.InvalidTokenError, KeyError, ValueError):
-        raise credentials_error
-
-    row = conn.execute("SELECT user_id, username, first_name, last_name, created_at FROM users WHERE user_id = %s", (user_id,)).fetchone()
-    if row is None:
-        raise credentials_error
-    return row
-
 
 @app.get("/health")
 def health(conn: psycopg.Connection = Depends(get_db)):
