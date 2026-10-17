@@ -22,7 +22,7 @@ def create_product(product: ProductCreate, conn: psycopg.Connection[dict] = Depe
     return row
 
 @router.get("/{product_id}", response_model=Product)
-def get_product(product_id: int, conn: psycopg.Connection = Depends(get_db)):
+def get_product(product_id: int, conn: psycopg.Connection[dict]= Depends(get_db)):
     row = conn.execute(
         "SELECT * FROM products WHERE product_id = %s", (product_id,)
     ).fetchone()
@@ -40,7 +40,7 @@ def list_products(status: Status | None = None, conn: psycopg.Connection[dict] =
     return results
 
 @router.patch("/{product_id}", response_model=Product)
-def update_product(product_id: int, product: ProductUpdate, conn: psycopg.Connection = Depends(get_db)):
+def update_product(product_id: int, product: ProductUpdate, conn: psycopg.Connection[dict]= Depends(get_db)):
     updates = product.model_dump(exclude_unset=True)
 
     if not updates:       

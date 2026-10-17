@@ -10,7 +10,7 @@ from app.security import create_access_token, hash_password, verify_password
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=User)
-def register(user: UserCreate, conn: psycopg.Connection = Depends(get_db)):
+def register(user: UserCreate, conn: psycopg.Connection[dict]= Depends(get_db)):
     try:
         row = conn.execute(
             "INSERT INTO users (username, password_hash, first_name, last_name) "

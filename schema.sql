@@ -4,7 +4,7 @@ CREATE TABLE users (
     password_hash text NOT NULL,
     first_name text NOT NULL,
     last_name text NOT NULL,
-    created_at timestamp NOT NULL DEFAULT now()
+    created_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE manifests (
@@ -23,7 +23,7 @@ CREATE TABLE products (
     list_price numeric(10, 2) NOT NULL,
     status text NOT NULL CHECK (status IN ('available', 'sold', 'not_available', 'deleted')),
     sold_price numeric(10, 2) NULL,
-    sold_at timestamp NULL
+    sold_at timestamptz NULL
 );
 
 CREATE INDEX idx_products_manifest_id ON products (manifest_id);

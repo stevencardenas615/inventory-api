@@ -8,7 +8,7 @@ from app.models import Manifest, ManifestCreate, Product
 router = APIRouter(prefix="/manifests", tags=["manifests"], dependencies=[Depends(get_current_user)])
 
 @router.post("", response_model=Manifest)
-def create_manifest(manifest: ManifestCreate, current_user: dict = Depends(get_current_user), conn: psycopg.Connection = Depends(get_db)):
+def create_manifest(manifest: ManifestCreate, current_user: dict = Depends(get_current_user), conn: psycopg.Connection[dict]= Depends(get_db)):
     row = conn.execute(
         "INSERT INTO manifests (purchase_date, cost, entered_by) "
         "VALUES (%s, %s, %s) RETURNING *",
@@ -16,12 +16,12 @@ def create_manifest(manifest: ManifestCreate, current_user: dict = Depends(get_c
     return row
 
 @router.get("", response_model=list[Manifest])
-def list_manifests(conn: psycopg.Connection = Depends(get_db)):
+def list_manifests(conn: psycopg.Connection[dict]= Depends(get_db)):
     results = conn.execute("SELECT * FROM manifests ORDER BY purchase_date DESC").fetchall()
     return results
 
 @router.get("/{manifest_id}", response_model=Manifest)
-def get_manifest(manifest_id: int, conn: psycopg.Connection = Depends(get_db)):
+def get_manifest(manifest_id: int, conn: psycopg.Connection[dict]= Depends(get_db)):
     row = conn.execute(
         "SELECT * FROM manifests WHERE manifest_id = %s", (manifest_id,)
     ).fetchone()

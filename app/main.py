@@ -9,6 +9,6 @@ app.include_router(manifests.router)
 app.include_router(products.router)
 
 @app.get("/health")
-def health(conn: psycopg.Connection = Depends(get_db)):
+def health(conn: psycopg.Connection[dict] = Depends(get_db)):
     conn.execute("SELECT 1")
     return {"status": "ok"}
