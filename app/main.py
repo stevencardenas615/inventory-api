@@ -1,13 +1,13 @@
 import psycopg
 from fastapi import FastAPI, Depends, HTTPException
 from psycopg import sql
-from app.security import hash_password, verify_password, create_access_token
 from app.db import get_db
-from app.models import ManifestCreate, Manifest, ProductCreate, Product, ProductUpdate, ProductSell, Status, User, UserCreate
-from fastapi.security import OAuth2PasswordRequestForm
+from app.models import ManifestCreate, Manifest, ProductCreate, Product, ProductUpdate, ProductSell, Status
 from app.deps import get_current_user
+from app.routers import auth
 
 app = FastAPI()
+app.include_router(auth.router)
 
 @app.get("/health")
 def health(conn: psycopg.Connection = Depends(get_db)):
@@ -129,27 +129,3 @@ def list_manifest_products(manifest_id: int, conn: psycopg.Connection[dict] = De
             raise HTTPException(status_code=404, detail="Manifest not found")
 
     return results
-
-@app.post("/auth/register", response_model=User)
-def register(user: UserCreate, conn: psycopg.Connection = Depends(get_db)):
-    try:
-        row = conn.execute(
-            "INSERT INTO users (username, password_hash, first_name, last_name) "
-            "VALUES (%s, %s, %s, %s) "
-            "RETURNING user_id, username, first_name, last_name, created_at",
-            (user.username, hash_password(user.password), user.first_name, user.last_name),
-        ).fetchone()
-    except psycopg.errors.UniqueViolation:
-        raise HTTPException(status_code=409, detail="Username already taken")
-    return row
-
-@app.post("/auth/token")
-def login(form: OAuth2PasswordRequestForm = Depends(), conn: psycopg.Connection[dict] = Depends(get_db)):
-    row = conn.execute("SELECT user_id, password_hash FROM users WHERE username = %s", (form.username,)).fetchone()
-    if row is None or not verify_password(form.password, row["password_hash"]):
-        raise HTTPException(status_code=401, detail="Incorrect username or password", headers={"WWW-Authenticate": "Bearer"})
-    return {"access_token": create_access_token(row["user_id"]), "token_type": "bearer"}
-
-@app.get("/auth/me", response_model=User)
-def read_me(current_user = Depends(get_current_user)):
-    return current_user
