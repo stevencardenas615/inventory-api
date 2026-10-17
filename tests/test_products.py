@@ -52,3 +52,39 @@ def test_patch_empty_body_is_400(client, auth_headers):
     product_id = make_product(client, auth_headers, manifest_id).json()["product_id"]
     r = client.patch(f"/products/{product_id}", json={}, headers=auth_headers)
     assert r.status_code == 400
+
+def test_sell_available_product_is_200(client, auth_headers):
+    manifest_id = make_manifest(client, auth_headers)
+    product_id = make_product(client, auth_headers, manifest_id, status="available").json()["product_id"]
+    r = client.post(f"/products/{product_id}/sell", json={"sold_price": "35.00"}, headers=auth_headers)
+    assert r.status_code == 200
+    assert r.json()["status"] == "sold"
+    assert r.json()["sold_at"] is not None
+
+def test_sell_product_twice_is_409(client, auth_headers):
+    manifest_id = make_manifest(client, auth_headers)
+    product_id = make_product(client, auth_headers, manifest_id, status="available").json()["product_id"]
+    client.post(f"/products/{product_id}/sell", json={"sold_price": "35.00"}, headers=auth_headers)   # first sale
+    r = client.post(f"/products/{product_id}/sell", json={"sold_price": "35.00"}, headers=auth_headers)  # second
+    assert r.status_code == 409
+
+def test_delete_a_sold_product_is_409(client, auth_headers):
+    manifest_id = make_manifest(client, auth_headers)
+    product_id = make_product(client, auth_headers, manifest_id, status="available").json()["product_id"]
+    client.post(f"/products/{product_id}/sell", json={"sold_price": "35.00"}, headers=auth_headers)
+    r = client.delete(f"/products/{product_id}", headers=auth_headers)
+    assert r.status_code == 409
+
+def test_delete_available_product_is_200(client, auth_headers):
+    manifest_id = make_manifest(client, auth_headers)
+    product_id = make_product(client, auth_headers, manifest_id, status="available").json()["product_id"]
+    r = client.delete(f"/products/{product_id}", headers=auth_headers)
+    assert r.status_code == 200
+    assert r.json()["status"] == "deleted"
+
+def test_deleted_product_hidden_from_list(client, auth_headers):
+    manifest_id = make_manifest(client, auth_headers)
+    product_id = make_product(client, auth_headers, manifest_id).json()["product_id"]
+    client.delete(f"/products/{product_id}", headers=auth_headers)
+    r = client.get("/products", headers=auth_headers)
+    assert r.json() == []
