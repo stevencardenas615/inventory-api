@@ -1,0 +1,13 @@
+services:
+  api:
+    build: .
+    container_name: inventory-api
+    network_mode: host          # same network as Traefik and Postgres (localhost works unchanged)
+    env_file: .env              # DATABASE_URL and JWT_SECRET come from the server's .env, never the image
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.inventory-api.rule=Host(`api.scardenas.tech`)
+      - traefik.http.routers.inventory-api.entrypoints=websecure
+      - traefik.http.routers.inventory-api.tls.certresolver=letsencrypt
+      - traefik.http.services.inventory-api.loadbalancer.server.port=8000
