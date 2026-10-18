@@ -1,4 +1,5 @@
 # Inventory API
+![CI](https://github.com/stevencardenas615/inventory-api/actions/workflows/ci.yml/badge.svg)
 
 A REST API for tracking products bought in bulk through manifests, from intake through sale. The idea comes from buying liquidation pallets: each pallet arrives with a manifest listing every product in it (item name, barcode, quantity, retail price), and the business needs to track what came in, what sold for how much, and what's still on the shelf.
 
