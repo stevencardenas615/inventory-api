@@ -48,3 +48,8 @@ def test_login_unknown_user_is_401(client):
 def test_register_with_missing_field(client):
     r = client.post("/auth/register", json={"username": "sbc", "password": "pwd12345","first_name": "steven",})
     assert r.status_code == 422
+
+def test_register_closed_is_403(client, monkeypatch):
+    monkeypatch.setenv("ALLOW_REGISTRATION", "false")
+    r = register(client)
+    assert r.status_code == 403

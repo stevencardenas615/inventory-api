@@ -1,4 +1,5 @@
 import psycopg
+import os
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 
@@ -11,6 +12,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=User)
 def register(user: UserCreate, conn: psycopg.Connection[dict]= Depends(get_db)):
+    if os.environ.get("ALLOW_REGISTRATION", "false").lower() != "true":
+        raise HTTPException(status_code=403, detail="Registration is closed")
     try:
         row = conn.execute(
             "INSERT INTO users (username, password_hash, first_name, last_name) "
