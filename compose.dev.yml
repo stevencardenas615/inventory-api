@@ -1,0 +1,24 @@
+# Local development and CI: a throwaway Postgres 16 with both databases created
+# and schema.sql loaded into each. The server uses compose.yml instead.
+#
+#   docker compose -f compose.dev.yml up -d --wait     start it
+#   docker compose -f compose.dev.yml down             stop it and throw the data away
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: inventory
+      POSTGRES_PASSWORD: inventory
+      POSTGRES_DB: inventory
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - ./schema.sql:/schema.sql:ro
+      - ./scripts/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
+    healthcheck:
+      # -h localhost: during first-run setup Postgres listens on its socket only,
+      # so this turns healthy when the init script below has finished, not before.
+      test: ["CMD-SHELL", "pg_isready -h localhost -U inventory -d inventory_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
