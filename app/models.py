@@ -1,7 +1,15 @@
 from datetime import date, datetime
-from enum import Enum
-from pydantic import BaseModel
 from decimal import Decimal
+from enum import Enum
+from typing import Annotated
+
+from pydantic import BaseModel, Field
+
+# What the columns in schema.sql can hold. Checking here turns bad input into a 422
+# with a reason, instead of a database error that reaches the client as a 500.
+Money = Annotated[Decimal, Field(ge=0, max_digits=10, decimal_places=2)]   # NUMERIC(10, 2), never negative
+RowId = Annotated[int, Field(ge=1, le=2_147_483_647)]                      # a Postgres int primary key
+ShortText = Annotated[str, Field(min_length=1, max_length=200)]            # a name or barcode, not empty
 
 class Status(str, Enum):
     AVAILABLE = "available"
@@ -10,16 +18,17 @@ class Status(str, Enum):
     SOLD = "sold"
 
 class EditableStatus(str, Enum):
+    # What a client may set on create and PATCH. 'sold' is set only by the sell
+    # route and 'deleted' only by DELETE, so each has exactly one way in.
     AVAILABLE = "available"
     NOT_AVAILABLE = "not_available"
-    DELETED = "deleted"
 
 class ProductBase(BaseModel):
-    manifest_id: int
-    barcode: str
-    product_name: str
-    retail_price: Decimal
-    list_price: Decimal
+    manifest_id: RowId
+    barcode: ShortText
+    product_name: ShortText
+    retail_price: Money
+    list_price: Money
 
 class ProductCreate(ProductBase):
     status: EditableStatus = EditableStatus.NOT_AVAILABLE
@@ -31,42 +40,40 @@ class Product(ProductBase):
     sold_at: datetime | None = None
 
 class ProductUpdate(BaseModel):
-    product_name: str | None = None
-    retail_price: Decimal | None = None
-    list_price: Decimal | None = None
+    product_name: ShortText | None = None
+    retail_price: Money | None = None
+    list_price: Money | None = None
     status: EditableStatus | None = None
 
 class ManifestCreate(BaseModel):
     purchase_date: date
-    cost: Decimal
+    cost: Money
 
 class Manifest(ManifestCreate):
     manifest_id: int
     entered_by: int
 
-class ManifestUpdate(BaseModel):
-    purchase_date: date | None = None
-    cost: Decimal | None = None
+class ManifestSummary(BaseModel):
+    manifest_id: int
+    cost: Decimal
+    items: int              # products on the manifest, deleted ones left out
+    sold: int
+    available: int
+    not_available: int
+    revenue: Decimal        # what the sold products brought in
+    profit: Decimal         # revenue minus the manifest's cost, so far
 
 class UserBase(BaseModel):
-    username: str
-    first_name: str
-    last_name: str
+    username: Annotated[str, Field(min_length=3, max_length=50)]
+    first_name: ShortText
+    last_name: ShortText
 
 class UserCreate(UserBase):
-    password: str
+    password: Annotated[str, Field(min_length=8, max_length=128)]
 
 class User(UserBase):
     user_id: int
     created_at: datetime
 
-class UserInDB(User):
-    password_hash: str
-
-class UserUpdate(BaseModel):
-    username: str | None = None
-    first_name: str | None = None
-    last_name: str | None = None    
-
 class ProductSell(BaseModel):
-    sold_price: Decimal
+    sold_price: Money

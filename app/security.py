@@ -17,9 +17,9 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, hashed: str) -> bool:
     return password_hash.verify(password, hashed)
 
-def create_access_token(usered_id: int) -> str:
+def create_access_token(user_id: int) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_MINUTES)
-    payload = {"sub": str(usered_id), "exp": expire}
+    payload = {"sub": str(user_id), "exp": expire}
     return jwt.encode(payload, JWT_SECRET, algorithm=ALGORITHM)
 
 def decode_access_token(token: str) -> int:

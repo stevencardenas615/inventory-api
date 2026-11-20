@@ -43,11 +43,14 @@ def list_products(status: Status | None = None, conn: psycopg.Connection[dict] =
 def update_product(product_id: int, product: ProductUpdate, conn: psycopg.Connection[dict]= Depends(get_db)):
     updates = product.model_dump(exclude_unset=True)
 
-    if not updates:       
+    if not updates:
         raise HTTPException(status_code=400, detail="No fields to update")
-    
+    # A field can be left out, but every column PATCH can touch is NOT NULL.
+    if any(value is None for value in updates.values()):
+        raise HTTPException(status_code=400, detail="Fields cannot be set to null")
+
     set_clause = sql.SQL(", ").join(sql.SQL("{} = %s").format(sql.Identifier(col)) for col in updates)
-    query = sql.SQL("UPDATE products SET {} WHERE product_id = %s AND status <> 'sold' RETURNING *").format(set_clause)
+    query = sql.SQL("UPDATE products SET {} WHERE product_id = %s AND status NOT IN ('sold', 'deleted') RETURNING *").format(set_clause)
 
     row = conn.execute(query, (*updates.values(), product_id)).fetchone()
 
@@ -55,7 +58,7 @@ def update_product(product_id: int, product: ProductUpdate, conn: psycopg.Connec
         existing = conn.execute("SELECT status FROM products WHERE product_id = %s", (product_id,)).fetchone()
         if existing is None:
             raise HTTPException(status_code=404, detail="Product not found")
-        raise HTTPException(status_code=409, detail="Sold products cannot be edited")
+        raise HTTPException(status_code=409, detail=f"Product is {existing['status']}, sold and deleted products cannot be edited")
     return row
 
 @router.post("/{product_id}/sell", response_model=Product)
