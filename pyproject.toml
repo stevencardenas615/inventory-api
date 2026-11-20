@@ -1,7 +1,7 @@
 [project]
 name = "inventory-api"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.2.0"
+description = "REST API for tracking liquidation inventory from manifest intake to sale"
 readme = "README.md"
 authors = [
     { name = "Steven Cardenas", email = "283815984+stevencardenas615@users.noreply.github.com" }
