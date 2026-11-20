@@ -1,4 +1,4 @@
-def register(client, username="ana", password="pw12345"):
+def register(client, username="ana", password="pw123456"):
     return client.post("/auth/register", json={
         "username": username, "password": password,
         "first_name": "Ana", "last_name": "Lopez",
@@ -18,7 +18,7 @@ def test_duplicate_username_is_409(client):
 
 def test_login_works(client):
     register(client)
-    r = client.post("/auth/token", data={"username": "ana", "password": "pw12345",})
+    r = client.post("/auth/token", data={"username": "ana", "password": "pw123456",})
     assert r.status_code == 200
     assert "access_token" in r.json()
     

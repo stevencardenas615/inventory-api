@@ -44,11 +44,11 @@ def client(monkeypatch):
 @pytest.fixture
 def auth_headers(client):
     r = client.post("/auth/register", json={
-        "username": "tester", "password": "pw12345",
+        "username": "tester", "password": "pw123456",
         "first_name": "Test", "last_name": "User",
     })
     assert r.status_code == 200, f"could not register the test user: {r.text}"
-    r = client.post("/auth/token", data={"username": "tester", "password": "pw12345"})
+    r = client.post("/auth/token", data={"username": "tester", "password": "pw123456"})
     assert r.status_code == 200, f"could not log in as the test user: {r.text}"
     token = r.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
