@@ -95,3 +95,22 @@ def test_patch_sold_product_is_409(client, auth_headers):
     client.post(f"/products/{product_id}/sell", json={"sold_price": "35.00"}, headers=auth_headers)
     r = client.patch(f"/products/{product_id}", json={"list_price": "1.00"}, headers=auth_headers)
     assert r.status_code == 409
+
+def test_create_with_status_deleted_is_422(client, auth_headers):
+    manifest_id = make_manifest(client, auth_headers)
+    r = make_product(client, auth_headers, manifest_id, status="deleted")
+    assert r.status_code == 422
+
+def test_patch_status_deleted_is_422(client, auth_headers):
+    manifest_id = make_manifest(client, auth_headers)
+    product_id = make_product(client, auth_headers, manifest_id).json()["product_id"]
+    r = client.patch(f"/products/{product_id}", json={"status": "deleted"}, headers=auth_headers)
+    assert r.status_code == 422
+
+def test_patch_cannot_bring_back_a_deleted_product(client, auth_headers):
+    manifest_id = make_manifest(client, auth_headers)
+    product_id = make_product(client, auth_headers, manifest_id).json()["product_id"]
+    client.delete(f"/products/{product_id}", headers=auth_headers)
+    r = client.patch(f"/products/{product_id}", json={"status": "available"}, headers=auth_headers)
+    assert r.status_code == 409
+    assert client.get(f"/products/{product_id}", headers=auth_headers).json()["status"] == "deleted"

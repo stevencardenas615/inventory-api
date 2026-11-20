@@ -18,9 +18,10 @@ class Status(str, Enum):
     SOLD = "sold"
 
 class EditableStatus(str, Enum):
+    # What a client may set on create and PATCH. 'sold' is set only by the sell
+    # route and 'deleted' only by DELETE, so each has exactly one way in.
     AVAILABLE = "available"
     NOT_AVAILABLE = "not_available"
-    DELETED = "deleted"
 
 class ProductBase(BaseModel):
     manifest_id: RowId
