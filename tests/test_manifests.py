@@ -45,3 +45,36 @@ def test_manifest_with_no_products_is_an_empty_list(client, auth_headers):
 def test_products_of_missing_manifest_is_404(client, auth_headers):
     r = client.get("/manifests/999/products", headers=auth_headers)
     assert r.status_code == 404
+
+def test_summary_of_a_manifest_with_no_products(client, auth_headers):
+    manifest_id = make_manifest(client, auth_headers)            # cost 500.00
+    r = client.get(f"/manifests/{manifest_id}/summary", headers=auth_headers)
+    assert r.status_code == 200
+    assert r.json() == {"manifest_id": manifest_id, "cost": "500.00", "items": 0, "sold": 0,
+                        "available": 0, "not_available": 0, "revenue": "0.00", "profit": "-500.00"}
+
+def test_summary_counts_by_status_and_adds_up_the_sales(client, auth_headers):
+    manifest_id = make_manifest(client, auth_headers)            # cost 500.00
+    for price in ("300.00", "250.50"):
+        product_id = make_product(client, auth_headers, manifest_id, status="available").json()["product_id"]
+        client.post(f"/products/{product_id}/sell", json={"sold_price": price}, headers=auth_headers)
+    make_product(client, auth_headers, manifest_id, status="available")
+    make_product(client, auth_headers, manifest_id)              # not_available
+    deleted_id = make_product(client, auth_headers, manifest_id).json()["product_id"]
+    client.delete(f"/products/{deleted_id}", headers=auth_headers)
+
+    body = client.get(f"/manifests/{manifest_id}/summary", headers=auth_headers).json()
+    assert (body["items"], body["sold"], body["available"], body["not_available"]) == (4, 2, 1, 1)
+    assert body["revenue"] == "550.50"
+    assert body["profit"] == "50.50"
+
+def test_summary_keeps_other_manifests_out(client, auth_headers):
+    first = make_manifest(client, auth_headers)
+    second = make_manifest(client, auth_headers)
+    product_id = make_product(client, auth_headers, second, status="available").json()["product_id"]
+    client.post(f"/products/{product_id}/sell", json={"sold_price": "80.00"}, headers=auth_headers)
+    assert client.get(f"/manifests/{first}/summary", headers=auth_headers).json()["revenue"] == "0.00"
+
+def test_summary_of_missing_manifest_is_404(client, auth_headers):
+    r = client.get("/manifests/999/summary", headers=auth_headers)
+    assert r.status_code == 404

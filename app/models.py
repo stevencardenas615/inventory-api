@@ -53,6 +53,16 @@ class Manifest(ManifestCreate):
     manifest_id: int
     entered_by: int
 
+class ManifestSummary(BaseModel):
+    manifest_id: int
+    cost: Decimal
+    items: int              # products on the manifest, deleted ones left out
+    sold: int
+    available: int
+    not_available: int
+    revenue: Decimal        # what the sold products brought in
+    profit: Decimal         # revenue minus the manifest's cost, so far
+
 class UserBase(BaseModel):
     username: Annotated[str, Field(min_length=3, max_length=50)]
     first_name: ShortText
