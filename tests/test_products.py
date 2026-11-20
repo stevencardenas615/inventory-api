@@ -114,3 +114,60 @@ def test_patch_cannot_bring_back_a_deleted_product(client, auth_headers):
     r = client.patch(f"/products/{product_id}", json={"status": "available"}, headers=auth_headers)
     assert r.status_code == 409
     assert client.get(f"/products/{product_id}", headers=auth_headers).json()["status"] == "deleted"
+
+def test_patch_missing_product_is_404(client, auth_headers):
+    r = client.patch("/products/999", json={"list_price": "1.00"}, headers=auth_headers)
+    assert r.status_code == 404
+
+def test_delete_missing_product_is_404(client, auth_headers):
+    r = client.delete("/products/999", headers=auth_headers)
+    assert r.status_code == 404
+
+def test_sell_missing_product_is_404(client, auth_headers):
+    r = client.post("/products/999/sell", json={"sold_price": "35.00"}, headers=auth_headers)
+    assert r.status_code == 404
+
+def test_sell_product_that_is_not_available_is_409(client, auth_headers):
+    manifest_id = make_manifest(client, auth_headers)
+    product_id = make_product(client, auth_headers, manifest_id).json()["product_id"]   # defaults to not_available
+    r = client.post(f"/products/{product_id}/sell", json={"sold_price": "35.00"}, headers=auth_headers)
+    assert r.status_code == 409
+
+def test_status_filter_returns_only_that_status(client, auth_headers):
+    manifest_id = make_manifest(client, auth_headers)
+    make_product(client, auth_headers, manifest_id)                                  # not_available
+    available_id = make_product(client, auth_headers, manifest_id, status="available").json()["product_id"]
+    deleted_id = make_product(client, auth_headers, manifest_id).json()["product_id"]
+    client.delete(f"/products/{deleted_id}", headers=auth_headers)
+
+    r = client.get("/products", params={"status": "available"}, headers=auth_headers)
+    assert [p["product_id"] for p in r.json()] == [available_id]
+    # deleted rows are hidden from the plain list but can be asked for by name
+    r = client.get("/products", params={"status": "deleted"}, headers=auth_headers)
+    assert [p["product_id"] for p in r.json()] == [deleted_id]
+
+def test_status_filter_with_unknown_status_is_422(client, auth_headers):
+    r = client.get("/products", params={"status": "lost"}, headers=auth_headers)
+    assert r.status_code == 422
+
+def test_two_sales_at_the_same_moment_sell_the_product_once(client, auth_headers):
+    """Two requests for the same product, released together from two threads. Each
+    request gets its own database connection, so Postgres decides: the second
+    UPDATE waits for the first, then finds the row no longer 'available'."""
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+
+    manifest_id = make_manifest(client, auth_headers)
+    product_id = make_product(client, auth_headers, manifest_id, status="available").json()["product_id"]
+    start = Barrier(2)
+
+    def sell(price):
+        start.wait(timeout=5)
+        return client.post(f"/products/{product_id}/sell", json={"sold_price": price}, headers=auth_headers)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        responses = list(pool.map(sell, ["35.00", "40.00"]))
+
+    assert sorted(r.status_code for r in responses) == [200, 409]
+    winner = next(r for r in responses if r.status_code == 200).json()
+    assert client.get(f"/products/{product_id}", headers=auth_headers).json()["sold_price"] == winner["sold_price"]
