@@ -44,10 +44,6 @@ class Manifest(ManifestCreate):
     manifest_id: int
     entered_by: int
 
-class ManifestUpdate(BaseModel):
-    purchase_date: date | None = None
-    cost: Decimal | None = None
-
 class UserBase(BaseModel):
     username: str
     first_name: str
@@ -59,14 +55,6 @@ class UserCreate(UserBase):
 class User(UserBase):
     user_id: int
     created_at: datetime
-
-class UserInDB(User):
-    password_hash: str
-
-class UserUpdate(BaseModel):
-    username: str | None = None
-    first_name: str | None = None
-    last_name: str | None = None    
 
 class ProductSell(BaseModel):
     sold_price: Decimal
